@@ -40,7 +40,7 @@ int main(int argc, char **argv){        //reads argv as array of char arguments 
     }
     fclose(fileList);                                   //the written file is at its last index, to return to the top we open it again with read access
     FILE *files = fopen("./file_names.txt", "r");       //opened the same file with read access instead of write access
-	for(int i = 0; i < thread_count; i++){              //initialize the thread_data array
+	for(int i = 1; i <= thread_count; i++){              //initialize the thread_data array
         data[i] = malloc(sizeof(struct thread_data));
         data[i]->tid = i;
         data[i]->pathindex = sizeof(dirname) + 1;       //this is argv[1] + 1, is the same for all but it is better to pass an int value instead of char*
@@ -65,7 +65,6 @@ int main(int argc, char **argv){        //reads argv as array of char arguments 
         t_index++;              //increase thread index for the next thread to be deployed
     }
     fclose(files);  //close file after use
-    free(files);
     for(int i = 0; i < thread_count; i++){
         pthread_join(tid[i], NULL);
         free(data[i]);
@@ -86,7 +85,7 @@ void* countPrime(void* i){
             prime++;
         }
     }
-    printf("Thread %d has found %d primes in %s", tid, prime, path + filetext); //output
+    printf("Thread %d has found %d primes in %s", tid, prime, path + filetext -1); //output
     fclose(file);                           //close the file that's not going to be used anymore
     sem_post(&mutex);                       //free up a slot in the mutex so that a thread can pass through again.
 }
