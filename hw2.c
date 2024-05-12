@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <dirent.h>
 #include <pthread.h>
 #include <semaphore.h>
@@ -33,7 +34,9 @@ int main(int argc, char **argv){        //reads argv as array of char arguments 
     struct thread_data* data[thread_count];             //create the array for data needed in the functions
     FILE *fileList = fopen("./file_names.txt", "w");    //create a txt file to write the entry names in the directory
     while((entry = readdir(directory)) != NULL){        //while the entries are not finished
-        fprintf(fileList, "%s\n", entry->d_name);       //write into the file the name of entries
+        if(strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0){
+            fprintf(fileList, "%s\n", entry->d_name);   //write into the file the name of entries
+        }
     }
     fclose(fileList);                                   //the written file is at its last index, to return to the top we open it again with read access
     FILE *files = fopen("./file_names.txt", "r");       //opened the same file with read access instead of write access
@@ -41,17 +44,18 @@ int main(int argc, char **argv){        //reads argv as array of char arguments 
         data[i]->tid = i;
         data[i]->pathindex = sizeof(dirname) + 1;       //this is argv[1] + 1, is the same for all but it is better to pass an int value instead of char*
 	}
-    char *path;                 //this is the file directory upto its specific name
+    char *path = malloc(10);    //this is the file directory upto its specific name
     int t_index = 0;            //this is the thread index
     strcpy(path, dirname);      //copies argv[1] into path 
     strcat(path, "/");          //concatanates "/" to path
-    char* filename;             //this is going to be the full path, edited in each iteration
-    while(!feof(files)){
+    char* filename = malloc(32);//this is going to be the full path, edited in each iteration
+    int a = 0;
+    while(a != 1){
         t_index = t_index % thread_count;   //modulus operation for usage on the same threads
         strcpy(filename, path);             //copy path into filename each time to reset the changes
         char *textfile;                     //
         sem_wait(&limit);                   //only a single thread should read the file at a time
-        fscanf(files, "%s", textfile);      //read the file and save the filename into textfile
+        a = fscanf(files, "%s", textfile);      //read the file and save the filename into textfile
         sem_post(&limit);                   //allow another thread to read
         strcat(filename, textfile);         //concatanate ./.../ with ...txt
         sem_wait(&mutex);                   //wait on the mutex until one of the threads are done operating
@@ -82,7 +86,6 @@ void* countPrime(void* i){
     }
     printf("Thread %d has found %d primes in %s", tid, prime, path + filetext); //output
     fclose(file);                           //close the file that's not going to be used anymore
-    free(file);                             //free the allocated memory for file
     sem_post(&mutex);                       //free up a slot in the mutex so that a thread can pass through again.
 }
 
