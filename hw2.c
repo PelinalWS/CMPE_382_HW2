@@ -45,16 +45,16 @@ int main(int argc, char **argv){        //reads argv as array of char arguments 
         data[i]->tid = i;
         data[i]->pathindex = sizeof(dirname) + 1;       //this is argv[1] + 1, is the same for all but it is better to pass an int value instead of char*
 	}
-    char *path = malloc(10);    //this is the file directory upto its specific name
+    char *path = malloc(strlen(dirname)+2);    //this is the file directory upto its specific name
     int t_index = 0;            //this is the thread index
     strcpy(path, dirname);      //copies argv[1] into path 
     strcat(path, "/");          //concatanates "/" to path
-    char* filename = malloc(32);//this is going to be the full path, edited in each iteration
+    char* filename = malloc(strlen(dirname)+10);//this is going to be the full path, edited in each iteration
     int a = 0;
     while(a != 1){
         t_index = t_index % thread_count;   //modulus operation for usage on the same threads
         strcpy(filename, path);             //copy path into filename each time to reset the changes
-        char *textfile;                     //
+        char *textfile = malloc(10);
         sem_wait(&limit);                   //only a single thread should read the file at a time
         a = fscanf(files, "%s", textfile);      //read the file and save the filename into textfile
         sem_post(&limit);                   //allow another thread to read
@@ -70,6 +70,7 @@ int main(int argc, char **argv){        //reads argv as array of char arguments 
         pthread_join(tid[i], NULL);
         free(data[i]);
     }
+    closedir(directory);
 }
 
 void* countPrime(void* i){
