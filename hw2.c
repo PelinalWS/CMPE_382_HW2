@@ -11,7 +11,7 @@ int isPrime(int n);
 //create global variable semaphores for access inside function
 sem_t mutex;    //mutex is for the max count of reading
 sem_t limit;    //limit is to limit the access for the file-list reading
-
+sem_t write_lock;
 struct thread_data{
     int tid;        //is the thread id
     int pathindex;  //is the length of the path up to the filename
@@ -30,39 +30,33 @@ int main(int argc, char **argv){        //reads argv as array of char arguments 
     struct dirent *entry;               //a dirent struct is needed to access the entries
     sem_init(&mutex, 0, thread_count);  //initialize mutex for a max count of up to thread count
     sem_init(&limit, 0, 1);             //initialize limit to 0-1
+    sem_init(&write_lock, 0, 1);
     pthread_t tid[thread_count];                        //create the threads as an array
     struct thread_data* data[thread_count];             //create the array for data needed in the functions
     FILE *fileList = fopen("./file_names.txt", "w");    //create a txt file to write the entry names in the directory
     while((entry = readdir(directory)) != NULL){        //while the entries are not finished
         if(strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0){
-            fprintf(fileList, "%s\n", entry->d_name);   //write into the file the name of entries
+            fprintf(fileList, "%s/%s\n", dirname, entry->d_name);   //write into the file the name of entries
         }
     }
     fclose(fileList);                                   //the written file is at its last index, to return to the top we open it again with read access
     FILE *files = fopen("./file_names.txt", "r");       //opened the same file with read access instead of write access
-	for(int i = 1; i <= thread_count; i++){              //initialize the thread_data array
+	for(int i = 0; i < thread_count; i++){              //initialize the thread_data array
         data[i] = malloc(sizeof(struct thread_data));
-        data[i]->tid = i;
-        data[i]->pathindex = sizeof(dirname) + 1;       //this is argv[1] + 1, is the same for all but it is better to pass an int value instead of char*
+        data[i]->tid = i+1;
+        data[i]->file = malloc(strlen(dirname)+10);
+        data[i]->pathindex = strlen(dirname) + 1;       //this is argv[1] + 1, is the same for all but it is better to pass an int value instead of char*
 	}
-    char *path = malloc(strlen(dirname)+2);    //this is the file directory upto its specific name
     int t_index = 0;            //this is the thread index
-    strcpy(path, dirname);      //copies argv[1] into path 
-    strcat(path, "/");          //concatanates "/" to path
-    char* filename = malloc(strlen(dirname)+10);//this is going to be the full path, edited in each iteration
-    int a = 0;
-    while(a != 1){
-        t_index = t_index % thread_count;   //modulus operation for usage on the same threads
-        strcpy(filename, path);             //copy path into filename each time to reset the changes
-        char *textfile = malloc(10);
-        sem_wait(&limit);                   //only a single thread should read the file at a time
-        a = fscanf(files, "%s", textfile);      //read the file and save the filename into textfile
-        sem_post(&limit);                   //allow another thread to read
-        strcat(filename, textfile);         //concatanate ./.../ with ...txt
+    while(1){
         sem_wait(&mutex);                   //wait on the mutex until one of the threads are done operating
-        data[t_index]->file = filename;     //pass the filename by thread data
+        sem_wait(&limit);                   //only a single thread should read the file at a time
+        if(fscanf(files, "%s", data[t_index]->file)!=1){      //read the file and save the filename into textfile
+        	break;
+        }
+        sem_post(&limit);                   //allow another thread to read
         pthread_create(&tid[t_index], NULL, countPrime, data[t_index]);
-        t_index++;              //increase thread index for the next thread to be deployed
+        t_index = (t_index + 1) % thread_count;
     }
     fclose(files);  //close file after use
     for(int i = 0; i < thread_count; i++){
@@ -80,12 +74,14 @@ void* countPrime(void* i){
     FILE *file = fopen(path, "r");          //open file
     int val;                                //read values into val
     int prime = 0;                          //increment in case val is a prime number
-    while(fscanf(file, "%d", &val) != 1){   //read until EOF
+    while(fscanf(file, "%d", &val) == 1){   //read until EOF
         if(isPrime(val)){                   //function call as a condition to increment prime
             prime++;
         }
     }
-    printf("Thread %d has found %d primes in %s", tid, prime, path + filetext -1); //output
+    sem_wait(&write_lock);
+    printf("Thread %d has found %d primes in %s\n", tid, prime, path + filetext); //output
+    sem_post(&write_lock);
     fclose(file);                           //close the file that's not going to be used anymore
     sem_post(&mutex);                       //free up a slot in the mutex so that a thread can pass through again.
 }
