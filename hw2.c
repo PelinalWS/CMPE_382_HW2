@@ -41,6 +41,7 @@ int main(int argc, char **argv){        //reads argv as array of char arguments 
     fclose(fileList);                                   //the written file is at its last index, to return to the top we open it again with read access
     FILE *files = fopen("./file_names.txt", "r");       //opened the same file with read access instead of write access
 	for(int i = 0; i < thread_count; i++){              //initialize the thread_data array
+        data[i] = malloc(sizeof(struct thread_data));
         data[i]->tid = i;
         data[i]->pathindex = sizeof(dirname) + 1;       //this is argv[1] + 1, is the same for all but it is better to pass an int value instead of char*
 	}
